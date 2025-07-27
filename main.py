@@ -7,28 +7,38 @@ from discord.ext import commands, tasks
 from discord.ext.commands import Bot, Context
 from dotenv import load_dotenv
 
+# Загрузка .env файла
+load_dotenv()
+
+# Получение токена из переменной окружения
+TOKEN = os.environ.get('DISCORD_TOKEN')
+
+# Настройка интентов
 intents = discord.Intents.default()
 intents.members = True
 intents.message_content = True
 
+# Инициализация бота
 bot = Bot(command_prefix="/", intents=intents, help_command=None)
 
-
+# Событие: когда бот готов
 @bot.event
 async def on_ready() -> None:
     print("----------------------------------")
     print(f"Bot [{bot.user.name}] is now online!")
     print("----------------------------------")
     status_task.start()
-    await bot.tree.sync() # Must to be called for the app-commands 
+    await bot.tree.sync()  # Синхронизация / команд
 
 
+# Обновление статуса
 @tasks.loop(minutes=1.0)
 async def status_task() -> None:
-    statuses = ["/p"]
+    statuses = ["/play 🎶"]
     await bot.change_presence(activity=discord.Game(random.choice(statuses)))
 
 
+# Обработка входящих сообщений
 @bot.event
 async def on_message(message: discord.Message) -> None:
     if message.author == bot.user or message.author.bot:
@@ -36,6 +46,7 @@ async def on_message(message: discord.Message) -> None:
     await bot.process_commands(message)
 
 
+# Обработка ошибок
 @bot.event
 async def on_command_error(context: Context, error) -> None:
     embed = discord.Embed(
@@ -46,19 +57,22 @@ async def on_command_error(context: Context, error) -> None:
     return await context.send(embed=embed)
 
 
+# Загрузка всех команд из папки cogs/
 async def load_cogs() -> None:
-    for file in os.listdir(f"./cogs"):
+    for file in os.listdir("./cogs"):
         if file.endswith(".py"):
             extension = file[:-3]
             try:
                 await bot.load_extension(f"cogs.{extension}")
-                print(f"Loaded cog '{extension}'")
+                print(f"✅ Loaded cog '{extension}'")
             except Exception as e:
-                exception = f"{type(e).__name__}: {e}"
-                print(f"Failed to load cog {extension}\n{exception}")
+                print(f"❌ Failed to load cog '{extension}': {type(e).__name__}: {e}")
 
 
-asyncio.run(load_cogs())
-load_dotenv()
-TOKEN = os.environ.get('bot_token')
-bot.run(TOKEN)
+# Главная точка входа
+async def main():
+    await load_cogs()
+    await bot.start(TOKEN)
+
+# Запуск
+asyncio.run(main())
